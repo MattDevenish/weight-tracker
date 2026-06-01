@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f1115">
+<title>Weight Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Archivo+Expanded:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1115; --surface:#181b21; --surface2:#20242c; --line:rgba(255,255,255,.08);
+    --line2:rgba(255,255,255,.14); --txt:#f4f5f7; --txt2:#9aa1ad; --txt3:#646b78;
+    --accent:#5dcaa5; --accent-d:#1d9e75; --est:#ef9f27; --danger:#e24b4a;
+    --blue:#378add; --pink:#d4537e; --r:14px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);color:var(--txt);
+    font-family:'Archivo',system-ui,sans-serif;
+    padding:max(env(safe-area-inset-top),16px) 16px calc(env(safe-area-inset-bottom) + 24px);
+    max-width:460px;margin:0 auto;-webkit-font-smoothing:antialiased;
+  }
+  h1{font-family:'Archivo Expanded','Archivo',sans-serif;font-size:20px;font-weight:700;letter-spacing:-.5px;margin:0;}
+  .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .gear{background:var(--surface);border:1px solid var(--line);color:var(--txt2);width:40px;height:40px;border-radius:12px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .gear:active{transform:scale(.94);}
+  .profiles{display:flex;gap:8px;margin-bottom:14px;}
+  .pbtn{flex:1;background:var(--surface);border:1px solid var(--line);color:var(--txt2);border-radius:12px;padding:11px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;}
+  .pbtn.active{color:var(--txt);}
+  .pbtn.active.p0{border-color:var(--accent);background:rgba(93,202,165,.12);}
+  .pbtn.active.p1{border-color:var(--pink);background:rgba(212,83,126,.12);}
+  .pbtn .av{width:22px;height:22px;border-radius:50%;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700;}
+  .p0 .av{background:var(--accent);color:#04342c;}
+  .p1 .av{background:var(--pink);color:#4b1528;}
+  .syncbar{font-size:11px;color:var(--txt3);text-align:center;margin-bottom:12px;letter-spacing:.3px;cursor:pointer;}
+  .syncbar.warn{color:var(--est);}
+  .syncbar.ok{color:var(--accent);}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:14px;}
+  .hero{text-align:center;padding:22px 18px;}
+  .hero .now{font-family:'Archivo Expanded','Archivo',sans-serif;font-size:42px;font-weight:700;letter-spacing:-1px;line-height:1;}
+  .hero .now small{font-size:18px;color:var(--txt2);font-weight:500;}
+  .hero .sub{color:var(--txt2);font-size:13px;margin-top:8px;}
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:99px;font-size:12px;font-weight:600;margin-top:10px;}
+  .pill.lose{background:rgba(93,202,165,.15);color:var(--accent);}
+  .pill.gain{background:rgba(226,75,74,.15);color:var(--danger);}
+  .row{display:flex;gap:10px;}
+  .stat{flex:1;background:var(--surface2);border-radius:11px;padding:13px 14px;}
+  .stat .l{font-size:11px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;font-weight:600;}
+  .stat .v{font-size:20px;font-weight:700;margin-top:3px;letter-spacing:-.4px;}
+  .stat .v small{font-size:13px;color:var(--txt2);font-weight:500;}
+  .logbtn{width:100%;background:var(--accent);color:#04342c;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .logbtn:active{transform:scale(.98);background:var(--accent-d);}
+  .sec-title{font-size:12px;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px;font-weight:600;margin:6px 2px 10px;}
+  .chartwrap{position:relative;height:230px;margin-top:4px;}
+  .legend{display:flex;gap:16px;justify-content:center;margin-bottom:6px;font-size:12px;color:var(--txt2);flex-wrap:wrap;}
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .dot{width:18px;height:3px;border-radius:2px;}
+  .goal{display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--line);}
+  .goal:last-child{border-bottom:none;}
+  .gicon{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;}
+  .gicon.done{background:var(--accent);color:#04342c;}
+  .gicon.next{background:rgba(239,159,39,.18);color:var(--est);border:1px solid rgba(239,159,39,.4);}
+  .gicon.future{background:var(--surface2);color:var(--txt3);}
+  .gmain{flex:1;min-width:0;}
+  .gmain .t{font-size:15px;font-weight:600;}
+  .gmain .d{font-size:12px;color:var(--txt2);margin-top:2px;}
+  .geta{text-align:right;flex-shrink:0;}
+  .geta .e{font-size:13px;font-weight:600;color:var(--est);}
+  .geta .done-tag{font-size:12px;color:var(--accent);font-weight:600;}
+  .prog{height:5px;background:var(--surface2);border-radius:3px;margin-top:14px;overflow:hidden;}
+  .prog .fill{height:100%;background:var(--accent);border-radius:3px;transition:width .4s;}
+  .empty{text-align:center;color:var(--txt3);font-size:13px;padding:30px 10px;line-height:1.6;}
+  .entry{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line);font-size:14px;}
+  .entry:last-child{border-bottom:none;}
+  .entry .e-d{color:var(--txt2);}
+  .entry .e-w{font-weight:600;}
+  .entry .e-x{color:var(--txt3);cursor:pointer;padding:4px 8px;font-size:16px;}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:none;align-items:flex-end;justify-content:center;z-index:50;}
+  .overlay.show{display:flex;}
+  .sheet{background:var(--surface);border-radius:22px 22px 0 0;width:100%;max-width:460px;padding:22px 18px calc(env(safe-area-inset-bottom) + 24px);border-top:1px solid var(--line2);animation:up .25s ease;max-height:92vh;overflow-y:auto;}
+  @keyframes up{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  .sheet h2{font-family:'Archivo Expanded','Archivo',sans-serif;font-size:18px;font-weight:700;margin:0 0 4px;}
+  .sheet .note{font-size:13px;color:var(--txt2);line-height:1.6;margin:0 0 12px;}
+  label{display:block;font-size:12px;color:var(--txt2);font-weight:600;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.4px;}
+  .stlb{display:flex;gap:12px;}
+  .stlb>div{flex:1;}
+  input{width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:14px;color:var(--txt);font-size:17px;font-family:inherit;font-weight:600;text-align:center;}
+  input:focus{outline:none;border-color:var(--accent);}
+  input[type=date]{font-weight:500;font-size:15px;text-align:left;}
+  input.txt{text-align:left;font-size:13px;font-weight:500;font-family:ui-monospace,monospace;}
+  .unitlbl{font-size:11px;color:var(--txt3);text-align:center;margin-top:5px;text-transform:uppercase;letter-spacing:.5px;}
+  .sheet .save{width:100%;background:var(--accent);color:#04342c;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:22px;}
+  .sheet .save:active{transform:scale(.98);}
+  .sheet .cancel{width:100%;background:transparent;color:var(--txt2);border:none;padding:14px;font-size:14px;font-family:inherit;cursor:pointer;margin-top:4px;}
+  .danger-link{color:var(--danger);background:none;border:none;font-size:13px;font-family:inherit;cursor:pointer;padding:8px;width:100%;margin-top:8px;}
+  .setup-banner{background:rgba(239,159,39,.12);border:1px solid rgba(239,159,39,.35);border-radius:12px;padding:14px;margin-bottom:14px;font-size:13px;color:#fac775;line-height:1.55;}
+  .setup-banner b{color:var(--est);}
+  .setup-banner button{margin-top:10px;background:var(--est);color:#412402;border:none;border-radius:10px;padding:10px 16px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>Weight</h1>
+  <button class="gear" onclick="openSettings()" aria-label="Settings">&#9881;</button>
+</div>
+
+<div id="setupBanner"></div>
+
+<div class="profiles" id="profiles"></div>
+<div class="syncbar" id="syncbar" onclick="openCloud()">Local only &mdash; tap to set up sync</div>
+
+<div class="card hero">
+  <div class="now" id="heroNow">&mdash;</div>
+  <div class="sub" id="heroSub">Log your first weigh-in</div>
+  <div id="heroPill"></div>
+</div>
+
+<button class="logbtn" onclick="openLog()">+ Log today's weight</button>
+
+<div class="row" style="margin-bottom:14px;">
+  <div class="stat"><div class="l">Lost so far</div><div class="v" id="statLost">&mdash;</div></div>
+  <div class="stat"><div class="l">To target</div><div class="v" id="statTo">&mdash;</div></div>
+</div>
+<div class="row" style="margin-bottom:14px;">
+  <div class="stat"><div class="l">Avg / week</div><div class="v" id="statAvg">&mdash;</div></div>
+  <div class="stat"><div class="l">Target ETA</div><div class="v" id="statEta">&mdash;</div></div>
+</div>
+
+<div class="card">
+  <div class="sec-title">Actual vs estimated</div>
+  <div class="legend">
+    <span><span class="dot" style="background:#5dcaa5"></span>Actual</span>
+    <span><span class="dot" style="background:#ef9f27;border-top:2px dashed #ef9f27;height:0"></span>Estimated</span>
+  </div>
+  <div class="chartwrap"><canvas id="chart" role="img" aria-label="Line chart of actual weight versus estimated weight loss trajectory over time"></canvas></div>
+</div>
+
+<div class="card">
+  <div class="sec-title">Goals</div>
+  <div id="goals"></div>
+  <div class="prog"><div class="fill" id="progFill" style="width:0%"></div></div>
+</div>
+
+<div class="card">
+  <div class="sec-title">History</div>
+  <div id="history"></div>
+</div>
+
+<div class="overlay" id="logOverlay">
+  <div class="sheet">
+    <h2>Log weight</h2>
+    <label>Date</label>
+    <input type="date" id="inDate">
+    <label>Weight</label>
+    <div class="stlb">
+      <div><input type="number" id="inSt" inputmode="numeric" placeholder="0"><div class="unitlbl">stone</div></div>
+      <div><input type="number" id="inLb" inputmode="decimal" step="0.1" placeholder="0"><div class="unitlbl">lbs</div></div>
+    </div>
+    <button class="save" onclick="saveLog()">Save</button>
+    <button class="cancel" onclick="closeSheet('logOverlay')">Cancel</button>
+  </div>
+</div>
+
+<div class="overlay" id="setOverlay">
+  <div class="sheet">
+    <h2 id="setTitle">Settings</h2>
+    <p class="note" id="setWho"></p>
+    <label>Starting weight</label>
+    <div class="stlb">
+      <div><input type="number" id="setStartSt" inputmode="numeric"><div class="unitlbl">stone</div></div>
+      <div><input type="number" id="setStartLb" inputmode="decimal" step="0.1"><div class="unitlbl">lbs</div></div>
+    </div>
+    <label>Target weight</label>
+    <div class="stlb">
+      <div><input type="number" id="setTgtSt" inputmode="numeric"><div class="unitlbl">stone</div></div>
+      <div><input type="number" id="setTgtLb" inputmode="decimal" step="0.1"><div class="unitlbl">lbs</div></div>
+    </div>
+    <label>Estimated loss per week (lbs)</label>
+    <input type="number" id="setRate" inputmode="decimal" step="0.1">
+    <label>Goal milestone size (lbs)</label>
+    <input type="number" id="setChunk" inputmode="numeric">
+    <button class="save" onclick="saveSettings()">Save</button>
+    <button class="cancel" onclick="closeSheet('setOverlay')">Cancel</button>
+    <button class="danger-link" onclick="resetProfile()">Reset this profile's data</button>
+  </div>
+</div>
+
+<div class="overlay" id="cloudOverlay">
+  <div class="sheet">
+    <h2>Cloud sync</h2>
+    <p class="note">Paste your Supabase <b>Project URL</b> and <b>anon public key</b> (see the setup steps). Once saved on both phones, your data syncs live.</p>
+    <label>Project URL</label>
+    <input class="txt" type="text" id="cfgUrl" placeholder="https://xxxx.supabase.co" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <label>Anon public key</label>
+    <input class="txt" type="text" id="cfgKey" placeholder="eyJhbGci..." autocapitalize="off" autocorrect="off" spellcheck="false">
+    <button class="save" onclick="saveCloud()">Connect</button>
+    <button class="cancel" onclick="closeSheet('cloudOverlay')">Cancel</button>
+    <button class="danger-link" id="disconnectBtn" onclick="disconnectCloud()" style="display:none">Disconnect cloud sync</button>
+  </div>
+</div>
+
+<script>
+const LKEY='wt_tracker_v2';
+const CFGKEY='wt_tracker_cloud';
+const DAY=86400000;
+const PROFILES=[{id:'matt',name:'Matt'},{id:'jo',name:'Jo'}];
+
+function freshProfile(isMatt){
+  return {startLb:isMatt?19*14+11:11*14,targetLb:isMatt?15*14:10*14,ratePerWeek:1.5,chunk:7,startDate:todayISO(),entries:[]};
+}
+function freshStore(){return {active:0,matt:freshProfile(true),jo:freshProfile(false)};}
+let store=loadLocal();
+let cfg=loadCfg();
+let sb=null;
+
+function loadLocal(){try{const r=JSON.parse(localStorage.getItem(LKEY));return r?Object.assign(freshStore(),r):freshStore();}catch(e){return freshStore();}}
+function saveLocal(){localStorage.setItem(LKEY,JSON.stringify(store));}
+function loadCfg(){try{return JSON.parse(localStorage.getItem(CFGKEY))||null;}catch(e){return null;}}
+function saveCfg(){if(cfg)localStorage.setItem(CFGKEY,JSON.stringify(cfg));else localStorage.removeItem(CFGKEY);}
+
+function P(){return store.active===0?store.matt:store.jo;}
+function pid(){return PROFILES[store.active].id;}
+function todayISO(){return new Date().toISOString().slice(0,10);}
+function toStLb(lb){const s=Math.floor(lb/14);return {s,l:lb-s*14};}
+function fmtStLb(lb){const{s,l}=toStLb(lb);const lr=Math.round(l*10)/10;return s+'st '+(lr%1===0?lr.toFixed(0):lr.toFixed(1))+'lb';}
+function parseDate(iso){return new Date(iso+'T00:00:00');}
+function weeksBetween(a,b){return (parseDate(b)-parseDate(a))/(DAY*7);}
+function fmtFull(iso){return parseDate(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
+function sortedEntries(){return [...P().entries].sort((a,b)=>a.date<b.date?-1:1);}
+function latest(){const e=sortedEntries();return e.length?e[e.length-1]:null;}
+function actualRate(){const e=sortedEntries();if(e.length<2)return null;const w=weeksBetween(e[0].date,e[e.length-1].date);if(w<=0)return null;return (e[0].lb-e[e.length-1].lb)/w;}
+
+function initCloud(){
+  if(cfg&&cfg.url&&cfg.key&&window.supabase){
+    try{sb=window.supabase.createClient(cfg.url,cfg.key);pullCloud();subscribe();}catch(e){sb=null;}
+  }
+  renderSyncState();
+}
+async function pullCloud(){
+  if(!sb)return;setSync('Syncing\u2026','');
+  try{
+    const {data,error}=await sb.from('weight_data').select('*');
+    if(error)throw error;
+    (data||[]).forEach(row=>{const tgt=row.profile==='matt'?store.matt:(row.profile==='jo'?store.jo:null);if(tgt&&row.payload)Object.assign(tgt,row.payload);});
+    saveLocal();render();setSync('Synced \u2713','ok');
+  }catch(e){setSync('Sync error \u2014 check keys','warn');}
+}
+async function pushCloud(){
+  if(!sb)return;setSync('Saving\u2026','');
+  try{
+    const payload={startLb:P().startLb,targetLb:P().targetLb,ratePerWeek:P().ratePerWeek,chunk:P().chunk,startDate:P().startDate,entries:P().entries};
+    const {error}=await sb.from('weight_data').upsert({profile:pid(),payload,updated_at:new Date().toISOString()},{onConflict:'profile'});
+    if(error)throw error;setSync('Synced \u2713','ok');
+  }catch(e){setSync('Save error \u2014 check keys','warn');}
+}
+function subscribe(){
+  if(!sb)return;
+  sb.channel('wt_changes').on('postgres_changes',{event:'*',schema:'public',table:'weight_data'},payload=>{
+    const row=payload.new;if(!row)return;
+    const tgt=row.profile==='matt'?store.matt:(row.profile==='jo'?store.jo:null);
+    if(tgt&&row.payload){Object.assign(tgt,row.payload);saveLocal();render();setSync('Synced \u2713','ok');}
+  }).subscribe();
+}
+function setSync(msg,cls){const b=document.getElementById('syncbar');b.textContent=msg;b.className='syncbar'+(cls?' '+cls:'');}
+function renderSyncState(){
+  const banner=document.getElementById('setupBanner');const dis=document.getElementById('disconnectBtn');
+  if(sb){setSync('Cloud sync on','ok');banner.innerHTML='';dis.style.display='block';}
+  else{setSync('Local only \u2014 tap to set up sync','warn');
+    banner.innerHTML='<div class="setup-banner"><b>Data is saved on this phone only.</b> To sync with another phone, set up free cloud storage.<button onclick="openCloud()">Set up sync</button></div>';
+    dis.style.display='none';}
+}
+
+function openSheet(id){document.getElementById(id).classList.add('show');}
+function closeSheet(id){document.getElementById(id).classList.remove('show');}
+function openLog(){
+  const l=latest();document.getElementById('inDate').value=todayISO();
+  const lb=l?l.lb:P().startLb;const o=toStLb(lb);
+  document.getElementById('inSt').value=o.s;document.getElementById('inLb').value=Math.round(o.l*10)/10;
+  openSheet('logOverlay');
+}
+function saveLog(){
+  const d=document.getElementById('inDate').value||todayISO();
+  const st=parseFloat(document.getElementById('inSt').value)||0;
+  const lb=parseFloat(document.getElementById('inLb').value)||0;
+  const total=st*14+lb;if(total<=0){closeSheet('logOverlay');return;}
+  P().entries=P().entries.filter(e=>e.date!==d);P().entries.push({date:d,lb:total});
+  saveLocal();closeSheet('logOverlay');render();pushCloud();
+}
+function delEntry(d){P().entries=P().entries.filter(e=>e.date!==d);saveLocal();render();pushCloud();}
+function openSettings(){
+  document.getElementById('setWho').textContent='Editing '+PROFILES[store.active].name+"'s plan";
+  const a=toStLb(P().startLb),b=toStLb(P().targetLb);
+  document.getElementById('setStartSt').value=a.s;document.getElementById('setStartLb').value=Math.round(a.l*10)/10;
+  document.getElementById('setTgtSt').value=b.s;document.getElementById('setTgtLb').value=Math.round(b.l*10)/10;
+  document.getElementById('setRate').value=P().ratePerWeek;document.getElementById('setChunk').value=P().chunk;
+  openSheet('setOverlay');
+}
+function saveSettings(){
+  P().startLb=(parseFloat(document.getElementById('setStartSt').value)||0)*14+(parseFloat(document.getElementById('setStartLb').value)||0);
+  P().targetLb=(parseFloat(document.getElementById('setTgtSt').value)||0)*14+(parseFloat(document.getElementById('setTgtLb').value)||0);
+  P().ratePerWeek=parseFloat(document.getElementById('setRate').value)||1.5;
+  P().chunk=parseInt(document.getElementById('setChunk').value)||7;
+  saveLocal();closeSheet('setOverlay');render();pushCloud();
+}
+function resetProfile(){
+  if(confirm('Erase '+PROFILES[store.active].name+"'s logged data?")){
+    if(store.active===0)store.matt=freshProfile(true);else store.jo=freshProfile(false);
+    saveLocal();closeSheet('setOverlay');render();pushCloud();
+  }
+}
+function openCloud(){if(cfg){document.getElementById('cfgUrl').value=cfg.url||'';document.getElementById('cfgKey').value=cfg.key||'';}openSheet('cloudOverlay');}
+function saveCloud(){
+  const url=document.getElementById('cfgUrl').value.trim().replace(/\/$/,'');
+  const key=document.getElementById('cfgKey').value.trim();
+  if(!url||!key){alert('Please paste both the URL and the key.');return;}
+  cfg={url,key};saveCfg();closeSheet('cloudOverlay');sb=null;initCloud();
+}
+function disconnectCloud(){cfg=null;saveCfg();sb=null;closeSheet('cloudOverlay');renderSyncState();}
+
+function renderProfiles(){
+  const w=document.getElementById('profiles');w.innerHTML='';
+  PROFILES.forEach((p,i)=>{const active=store.active===i;
+    w.innerHTML+='<button class="pbtn p'+i+' '+(active?'active':'')+'" onclick="switchProfile('+i+')"><span class="av">'+p.name[0]+'</span>'+p.name+'</button>';});
+}
+function switchProfile(i){store.active=i;saveLocal();render();}
+
+function etaForWeight(W,rate,fromLb,fromDate){
+  if(rate<=0)return null;const toLose=fromLb-W;if(toLose<=0)return fromDate;
+  const wks=toLose/rate;return new Date(parseDate(fromDate).getTime()+wks*7*DAY).toISOString().slice(0,10);
+}
+
+let chart;
+function render(){
+  renderProfiles();
+  const e=sortedEntries();
+  const cur=latest()?latest().lb:P().startLb;
+  const startRef=e.length?e[0].lb:P().startLb;
+  const startDateRef=e.length?e[0].date:P().startDate;
+  document.getElementById('heroNow').innerHTML=toStLb(cur).s+'<small>st</small> '+(Math.round(toStLb(cur).l*10)/10)+'<small>lb</small>';
+  const pill=document.getElementById('heroPill');
+  if(e.length>=2){const l2=e.slice(-2);const diff=l2[1].lb-l2[0].lb;
+    if(diff<0)pill.innerHTML='<span class="pill lose">&#9660; '+Math.abs(Math.round(diff*10)/10)+'lb since last</span>';
+    else if(diff>0)pill.innerHTML='<span class="pill gain">&#9650; '+Math.round(diff*10)/10+'lb since last</span>';
+    else pill.innerHTML='<span class="pill lose">No change</span>';
+  }else pill.innerHTML='';
+  document.getElementById('heroSub').textContent=e.length?'Last weighed '+fmtFull(e[e.length-1].date):'Log your first weigh-in';
+  const lost=startRef-cur,toTgt=cur-P().targetLb,aRate=actualRate();
+  document.getElementById('statLost').innerHTML=e.length?(Math.round(lost*10)/10)+'<small>lb</small>':'&mdash;';
+  document.getElementById('statTo').innerHTML=(Math.round(Math.max(0,toTgt)*10)/10)+'<small>lb</small>';
+  document.getElementById('statAvg').innerHTML=aRate!=null?(Math.round(aRate*10)/10)+'<small>lb</small>':P().ratePerWeek+'<small>lb*</small>';
+  const etaRate=aRate!=null&&aRate>0?aRate:P().ratePerWeek;
+  const tgtEta=etaForWeight(P().targetLb,etaRate,cur,e.length?e[e.length-1].date:P().startDate);
+  document.getElementById('statEta').innerHTML=(toTgt<=0)?'Reached':(tgtEta?'<small>~</small>'+parseDate(tgtEta).toLocaleDateString('en-GB',{month:'short',year:'2-digit'}):'&mdash;');
+  const totalToLose=P().startLb-P().targetLb;
+  const pct=totalToLose>0?Math.min(100,Math.max(0,(P().startLb-cur)/totalToLose*100)):0;
+  document.getElementById('progFill').style.width=pct+'%';
+  renderGoals(cur,etaRate,e);renderHistory(e);renderChart(e,startRef,startDateRef);
+}
+function renderGoals(cur,etaRate,e){
+  const wrap=document.getElementById('goals');wrap.innerHTML='';
+  const total=P().startLb-P().targetLb;
+  if(total<=0){wrap.innerHTML='<div class="empty">Set a target below your start weight.</div>';return;}
+  const milestones=[];let w=P().startLb-P().chunk;
+  while(w>P().targetLb+0.01){milestones.push(w);w-=P().chunk;}
+  milestones.push(P().targetLb);
+  const fromDate=e.length?e[e.length-1].date:P().startDate;
+  let idx=1,foundNext=false;
+  milestones.forEach(mw=>{
+    const done=cur<=mw+0.001,isTarget=Math.abs(mw-P().targetLb)<0.001;
+    let cls='future',tag='';
+    if(done){cls='done';tag='<span class="done-tag">&#10003; done</span>';}
+    else if(!foundNext){cls='next';foundNext=true;const eta=etaForWeight(mw,etaRate,cur,fromDate);tag=eta?'<span class="e">~'+fmtFull(eta)+'</span>':'';}
+    else{const eta=etaForWeight(mw,etaRate,cur,fromDate);tag=eta?'<span class="e" style="color:var(--txt2)">~'+parseDate(eta).toLocaleDateString('en-GB',{month:'short',year:'2-digit'})+'</span>':'';}
+    const label=isTarget?'Target weight':'Goal '+idx;
+    const sub=fmtStLb(mw)+' &middot; '+Math.round(P().startLb-mw)+'lb off start';
+    wrap.innerHTML+='<div class="goal"><div class="gicon '+cls+'">'+(done?'&#10003;':(isTarget?'&#9733;':idx))+'</div><div class="gmain"><div class="t">'+label+'</div><div class="d">'+sub+'</div></div><div class="geta">'+tag+'</div></div>';
+    if(!isTarget)idx++;
+  });
+}
+function renderHistory(e){
+  const h=document.getElementById('history');
+  if(!e.length){h.innerHTML='<div class="empty">No entries yet.<br>Tap "Log today\'s weight" to start.</div>';return;}
+  h.innerHTML='';
+  [...e].reverse().forEach(en=>{h.innerHTML+='<div class="entry"><span class="e-d">'+fmtFull(en.date)+'</span><span><span class="e-w">'+fmtStLb(en.lb)+'</span><span class="e-x" onclick="delEntry(\''+en.date+'\')">&times;</span></span></div>';});
+}
+function renderChart(e,startRef,startDateRef){
+  const ctx=document.getElementById('chart');
+  const sLb=startRef,sDate=startDateRef;
+  const estWeeks=P().ratePerWeek>0?(sLb-P().targetLb)/P().ratePerWeek:0;
+  const estEndDate=new Date(parseDate(sDate).getTime()+estWeeks*7*DAY);
+  const lastActual=e.length?parseDate(e[e.length-1].date):parseDate(sDate);
+  const axisEnd=new Date(Math.max(estEndDate.getTime(),lastActual.getTime()));
+  const estData=[{x:parseDate(sDate).getTime(),y:sLb}];
+  if(estWeeks>0)estData.push({x:estEndDate.getTime(),y:P().targetLb});
+  const actData=e.map(en=>({x:parseDate(en.date).getTime(),y:en.lb}));
+  const allW=[sLb,P().targetLb].concat(e.map(x=>x.lb));
+  const yMin=Math.floor(Math.min.apply(null,allW)-3),yMax=Math.ceil(Math.max.apply(null,allW)+3);
+  if(chart)chart.destroy();
+  chart=new Chart(ctx,{type:'line',
+    data:{datasets:[
+      {label:'Estimated',data:estData,borderColor:'#ef9f27',borderDash:[6,5],borderWidth:2,pointRadius:0,tension:0,fill:false},
+      {label:'Actual',data:actData,borderColor:'#5dcaa5',backgroundColor:'rgba(93,202,165,.12)',borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#5dcaa5',pointBorderColor:'#0f1115',pointBorderWidth:2,tension:.25,fill:true}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'nearest',intersect:false},
+      scales:{x:{type:'linear',min:parseDate(sDate).getTime(),max:axisEnd.getTime(),
+        ticks:{color:'#646b78',font:{size:11},maxTicksLimit:5,callback:v=>new Date(v).toLocaleDateString('en-GB',{month:'short',year:'2-digit'})},grid:{color:'rgba(255,255,255,.05)'}},
+        y:{min:yMin,max:yMax,ticks:{color:'#646b78',font:{size:11},stepSize:14,callback:v=>Math.floor(v/14)+'st'},grid:{color:'rgba(255,255,255,.05)'}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{
+        title:items=>new Date(items[0].parsed.x).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
+        label:it=>it.dataset.label+': '+fmtStLbJS(it.parsed.y)}}}}
+  });
+}
+function fmtStLbJS(lb){const s=Math.floor(lb/14);return s+'st '+Math.round((lb-s*14)*10)/10+'lb';}
+
+['logOverlay','setOverlay','cloudOverlay'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',ev=>{if(ev.target.id===id)closeSheet(id);});
+});
+
+render();
+initCloud();
+</script>
+</body>
+</html>
